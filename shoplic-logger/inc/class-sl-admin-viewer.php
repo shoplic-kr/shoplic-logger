@@ -55,28 +55,6 @@ class SL_Admin_Viewer {
             'nonce' => wp_create_nonce( 'sl_ajax_nonce' )
         ) ) . ';' );
         
-        // 시스템 정보 복사 기능을 위한 스크립트 추가
-        $current_tab = isset( $_GET['tab'] ) ? sanitize_text_field( $_GET['tab'] ) : 'logs';
-        if ( 'system-info' === $current_tab ) {
-            wp_add_inline_script( 'jquery', "
-                jQuery(document).ready(function($) {
-                    // 시스템 정보를 클립보드에 복사
-                    $('#sl-copy-sysinfo').on('click', function(e) {
-                        e.preventDefault();
-                        var copyText = document.getElementById('sl-sysinfo-text');
-                        copyText.select();
-                        copyText.setSelectionRange(0, 99999); // 모바일 기기를 위해
-                        
-                        try {
-                            document.execCommand('copy');
-                            $('.sl-copy-message').show().delay(2000).fadeOut();
-                        } catch (err) {
-                            alert('복사에 실패했습니다. 수동으로 선택하여 복사해주세요.');
-                        }
-                    });
-                });
-            " );
-        }
     }
     
     /**
@@ -99,9 +77,6 @@ class SL_Admin_Viewer {
                 <a href="?page=shoplic-logger&tab=debug-settings" class="nav-tab <?php echo $current_tab === 'debug-settings' ? 'nav-tab-active' : ''; ?>">
                     <span title="개발 중 문제 해결을 위한 워드프레스 디버그 모드 설정">디버그 설정</span>
                 </a>
-                <a href="?page=shoplic-logger&tab=system-info" class="nav-tab <?php echo $current_tab === 'system-info' ? 'nav-tab-active' : ''; ?>">
-                    <span title="워드프레스와 서버 환경에 대한 자세한 정보">시스템 정보</span>
-                </a>
             </nav>
             
             <div class="tab-content">
@@ -116,9 +91,6 @@ class SL_Admin_Viewer {
                         $debug_settings->render_page();
                         break;
                         
-                    case 'system-info':
-                        SL_SysInfo_Reporter::display();
-                        break;
                     
                     case 'logs':
                     default:
