@@ -194,6 +194,21 @@ class SL_Ajax_Handler {
                 'WP_DISABLE_FATAL_ERROR_HANDLER' => isset( $_POST['wp_disable_fatal_error_handler'] ) && $_POST['wp_disable_fatal_error_handler'] === '1'
             );
             
+            // 메모리 제한 설정 가져오기 및 유효성 검사
+            $memory_limit = isset( $_POST['wp_memory_limit'] ) ? intval( $_POST['wp_memory_limit'] ) : 40;
+            $max_memory_limit = isset( $_POST['wp_max_memory_limit'] ) ? intval( $_POST['wp_max_memory_limit'] ) : 256;
+            
+            // 유효성 검사
+            if ( $memory_limit < 32 ) {
+                wp_send_json_error( 'WP_MEMORY_LIMIT는 최소 32MB 이상이어야 합니다.' );
+                return;
+            }
+            
+            if ( $max_memory_limit < $memory_limit ) {
+                wp_send_json_error( 'WP_MAX_MEMORY_LIMIT는 WP_MEMORY_LIMIT 이상이어야 합니다.' );
+                return;
+            }
+            
             // 각 상수 업데이트
             foreach ( $settings as $constant => $value ) {
                 $config_transformer->update(
@@ -207,6 +222,29 @@ class SL_Ajax_Handler {
                     )
                 );
             }
+            
+            // 메모리 제한 상수 업데이트
+            $config_transformer->update(
+                'constant',
+                'WP_MEMORY_LIMIT',
+                "'{$memory_limit}M'",
+                array(
+                    'raw' => true,
+                    'normalize' => true,
+                    'add' => true
+                )
+            );
+            
+            $config_transformer->update(
+                'constant',
+                'WP_MAX_MEMORY_LIMIT',
+                "'{$max_memory_limit}M'",
+                array(
+                    'raw' => true,
+                    'normalize' => true,
+                    'add' => true
+                )
+            );
             
             wp_send_json_success( array(
                 'message' => '설정이 성공적으로 저장되었습니다.',
