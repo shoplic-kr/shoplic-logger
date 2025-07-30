@@ -192,22 +192,48 @@ class SL_Admin_Viewer {
                 opacity: 0.5;
                 pointer-events: none;
             }
-            .sl-tag-filter-selector {
-                margin-bottom: 10px;
+            .sl-tag-filter-buttons {
+                margin-bottom: 15px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+                align-items: center;
             }
-            .sl-tag-filter-selector select {
-                width: 100%;
-                font-size: 13px;
-                padding: 5px 8px;
-                border: 1px solid #8c8f94;
-                border-radius: 4px;
-                background-color: #fff;
-                cursor: pointer;
+            .sl-tag-filter-buttons .button-small {
+                padding: 3px 10px;
+                font-size: 12px;
+                line-height: 1.5;
+                height: auto;
             }
-            .sl-tag-filter-selector select:focus {
+            .sl-filter-tag-btn {
+                background: #f0f0f1;
+                border-color: #c3c4c7;
+                color: #50575e;
+            }
+            .sl-filter-tag-btn:hover {
+                background: #e5e5e5;
+                border-color: #8c8f94;
+                color: #23282d;
+            }
+            .sl-filter-tag-btn.active {
+                background: #007cba;
                 border-color: #007cba;
-                box-shadow: 0 0 0 1px #007cba;
-                outline: 2px solid transparent;
+                color: #fff;
+            }
+            .sl-filter-tag-btn.active:hover {
+                background: #005a87;
+                border-color: #005a87;
+                color: #fff;
+            }
+            .sl-filter-clear-all {
+                background: #d63638;
+                border-color: #d63638;
+                color: #fff;
+            }
+            .sl-filter-clear-all:hover {
+                background: #b32d2e;
+                border-color: #b32d2e;
+                color: #fff;
             }
             .sl-filter-info {
                 background: #f0f8ff;
@@ -268,18 +294,18 @@ class SL_Admin_Viewer {
             </div>
             
             <?php if ( ! empty( $available_tags ) ) : ?>
-            <div class="sl-tag-filter-selector">
-                <select class="sl-tag-filter-select">
-                    <option value="">모든 태그 보기</option>
-                    <?php foreach ( $available_tags as $tag ) : ?>
-                        <option value="<?php echo esc_attr( $tag ); ?>"><?php echo esc_html( $tag ); ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="sl-tag-filter-buttons">
+                <button type="button" class="button button-small sl-filter-clear-all">모든 필터 해제</button>
+                <?php foreach ( $available_tags as $tag ) : ?>
+                    <button type="button" class="button button-small sl-filter-tag-btn" data-tag="<?php echo esc_attr( $tag ); ?>">
+                        <?php echo esc_html( $tag ); ?>
+                    </button>
+                <?php endforeach; ?>
             </div>
             <?php endif; ?>
             
             <div class="sl-log-actions">
-                <button type="button" class="button sl-clear-log" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">비우기</button>
+                <button type="button" class="button sl-clear-log" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">전체 비우기</button>
                 <button type="button" class="button sl-copy-log" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">복사</button>
                 <button type="button" class="button sl-refresh-log" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">새로고침</button>
                 <button type="button" class="button sl-delete-file" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">파일삭제</button>
@@ -314,7 +340,7 @@ class SL_Admin_Viewer {
             </div>
             
             <div class="sl-log-actions">
-                <button type="button" class="button sl-clear-debug-log">비우기</button>
+                <button type="button" class="button sl-clear-debug-log">전체 비우기</button>
                 <button type="button" class="button sl-copy-debug-log">복사</button>
                 <button type="button" class="button sl-refresh-debug-log">새로고침</button>
             </div>

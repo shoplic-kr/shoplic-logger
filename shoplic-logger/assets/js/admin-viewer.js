@@ -4,19 +4,26 @@ jQuery(document).ready(function($) {
         $(this).data("original-content", $(this).html());
     });
     
-    // 태그 필터 드롭다운 변경 이벤트
-    $(document).on("change", ".sl-tag-filter-select", function() {
-        var selectedTag = $(this).val();
-        var card = $(this).closest(".sl-log-card");
+    // 필터 태그 버튼 클릭 이벤트
+    $(document).on("click", ".sl-filter-tag-btn", function() {
+        var button = $(this);
+        var selectedTag = button.data("tag");
+        var card = button.closest(".sl-log-card");
         var logContent = card.find(".sl-log-content");
         var originalContent = logContent.data("original-content");
         
-        if (!selectedTag) {
+        // 토글 동작
+        if (button.hasClass("active")) {
             // 필터 해제
+            button.removeClass("active");
             logContent.html(originalContent);
             card.find(".sl-filter-info").remove();
             card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
         } else {
+            // 다른 활성 버튼 비활성화
+            card.find(".sl-filter-tag-btn").removeClass("active");
+            button.addClass("active");
+            
             // 필터 적용
             var lines = originalContent.split("\n");
             var filteredLines = [];
@@ -28,9 +35,19 @@ jQuery(document).ready(function($) {
                 
                 // 새로운 로그 항목의 시작을 확인
                 if (line.match(/^\[\d{4}-\d{2}-\d{2}/)) {
-                    inMatchingEntry = line.indexOf("[TAGS:") !== -1 && line.indexOf(selectedTag) !== -1;
-                    if (inMatchingEntry) {
-                        entryCount++;
+                    // HTML 태그를 포함한 상태에서 태그 검색
+                    var tagMatch = line.match(/data-tag="([^"]+)"/g);
+                    inMatchingEntry = false;
+                    
+                    if (tagMatch) {
+                        for (var j = 0; j < tagMatch.length; j++) {
+                            var tag = tagMatch[j].replace(/data-tag="/, '').replace(/"/, '');
+                            if (tag === selectedTag) {
+                                inMatchingEntry = true;
+                                entryCount++;
+                                break;
+                            }
+                        }
                     }
                 }
                 
@@ -56,14 +73,29 @@ jQuery(document).ready(function($) {
         }
     });
     
+    // 모든 필터 해제 버튼
+    $(document).on("click", ".sl-filter-clear-all", function() {
+        var card = $(this).closest(".sl-log-card");
+        var logContent = card.find(".sl-log-content");
+        var originalContent = logContent.data("original-content");
+        
+        // 모든 필터 버튼 비활성화
+        card.find(".sl-filter-tag-btn").removeClass("active");
+        
+        // 원본 컨텐츠 복원
+        logContent.html(originalContent);
+        card.find(".sl-filter-info").remove();
+        card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
+    });
+    
     // 태그 클릭 이벤트
     $(document).on("click", ".sl-tag", function() {
         var tag = $(this).data("tag");
         var card = $(this).closest(".sl-log-card");
-        var filterSelect = card.find(".sl-tag-filter-select");
+        var filterButton = card.find('.sl-filter-tag-btn[data-tag="' + tag + '"]');
         
-        if (filterSelect.length) {
-            filterSelect.val(tag).trigger("change");
+        if (filterButton.length) {
+            filterButton.trigger("click");
         }
     });
     
@@ -71,7 +103,7 @@ jQuery(document).ready(function($) {
     $(document).on("click", ".sl-clear-filter", function(e) {
         e.preventDefault();
         var card = $(this).closest(".sl-log-card");
-        card.find(".sl-tag-filter-select").val("").trigger("change");
+        card.find(".sl-filter-clear-all").trigger("click");
     });
     
     // 날짜 변경 시 원본 컨텐츠 업데이트
@@ -82,42 +114,41 @@ jQuery(document).ready(function($) {
         // 태그 필터 드롭다운 업데이트
         var content = logContent.html();
         var availableTags = {};
-        var matches = content.match(/\[TAGS: ([^\]]+)\]/g);
         
-        if (matches) {
-            matches.forEach(function(match) {
-                var tagString = match.replace(/\[TAGS: /, "").replace(/\]/, "");
-                var tags = tagString.split(", ");
-                tags.forEach(function(tag) {
-                    tag = tag.trim();
-                    if (tag) {
-                        availableTags[tag] = true;
-                    }
-                });
+        // HTML에서 data-tag 속성을 찾아서 태그 추출
+        var tagMatches = content.match(/data-tag="([^"]+)"/g);
+        if (tagMatches) {
+            tagMatches.forEach(function(match) {
+                var tag = match.replace(/data-tag="/, '').replace(/"/, '');
+                if (tag) {
+                    availableTags[tag] = true;
+                }
             });
         }
         
         var tagArray = Object.keys(availableTags).sort();
-        var filterSelect = $(this).find(".sl-tag-filter-select");
+        var filterContainer = $(this).find(".sl-tag-filter-buttons");
         
-        if (tagArray.length > 0 && filterSelect.length === 0) {
-            // 필터 셀렉터 추가
-            var filterHtml = '<div class="sl-tag-filter-selector"><select class="sl-tag-filter-select"><option value="">모든 태그 보기</option>';
+        if (tagArray.length > 0 && filterContainer.length === 0) {
+            // 필터 버튼 컨테이너 추가
+            var filterHtml = '<div class="sl-tag-filter-buttons"><button type="button" class="button button-small sl-filter-clear-all">모든 필터 해제</button>';
             tagArray.forEach(function(tag) {
-                filterHtml += '<option value="' + tag + '">' + tag + '</option>';
+                filterHtml += '<button type="button" class="button button-small sl-filter-tag-btn" data-tag="' + tag + '">' + tag + '</button>';
             });
-            filterHtml += '</select></div>';
+            filterHtml += '</div>';
             $(this).find(".sl-log-date-selector").after(filterHtml);
-        } else if (filterSelect.length > 0) {
-            // 기존 셀렉터 업데이트
-            var currentValue = filterSelect.val();
-            filterSelect.empty().append('<option value="">모든 태그 보기</option>');
+        } else if (filterContainer.length > 0) {
+            // 기존 버튼 업데이트
+            var activeTag = filterContainer.find(".sl-filter-tag-btn.active").data("tag");
+            filterContainer.find(".sl-filter-tag-btn").remove();
+            
             tagArray.forEach(function(tag) {
-                filterSelect.append('<option value="' + tag + '">' + tag + '</option>');
+                var button = $('<button type="button" class="button button-small sl-filter-tag-btn" data-tag="' + tag + '">' + tag + '</button>');
+                if (tag === activeTag) {
+                    button.addClass("active");
+                }
+                filterContainer.append(button);
             });
-            if (tagArray.indexOf(currentValue) !== -1) {
-                filterSelect.val(currentValue);
-            }
         }
     });
 
@@ -149,7 +180,7 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr, status, error) {
                 card.removeClass('sl-loading');
-                alert('비우기에 실패했습니다.');
+                alert('전체 비우기에 실패했습니다.');
             }
         });
     });
@@ -307,7 +338,7 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr, status, error) {
                 card.removeClass('sl-loading');
-                alert('비우기에 실패했습니다.');
+                alert('전체 비우기에 실패했습니다.');
             }
         });
     });
