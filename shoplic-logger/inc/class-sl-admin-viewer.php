@@ -192,8 +192,36 @@ class SL_Admin_Viewer {
                 opacity: 0.5;
                 pointer-events: none;
             }
-            .sl-tag-filter-buttons {
+            .sl-tag-filter-wrapper {
                 margin-bottom: 15px;
+                border: 1px solid #c3c4c7;
+                border-radius: 4px;
+                padding: 10px;
+                background: #f6f7f7;
+            }
+            .sl-tag-filter-controls {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #dcdcde;
+            }
+            .sl-filter-mode {
+                display: flex;
+                gap: 15px;
+                font-size: 13px;
+            }
+            .sl-filter-mode label {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                cursor: pointer;
+            }
+            .sl-filter-mode input[type="radio"] {
+                margin: 0;
+            }
+            .sl-tag-filter-buttons {
                 display: flex;
                 flex-wrap: wrap;
                 gap: 5px;
@@ -294,13 +322,27 @@ class SL_Admin_Viewer {
             </div>
             
             <?php if ( ! empty( $available_tags ) ) : ?>
-            <div class="sl-tag-filter-buttons">
-                <button type="button" class="button button-small sl-filter-clear-all">모든 필터 해제</button>
-                <?php foreach ( $available_tags as $tag ) : ?>
-                    <button type="button" class="button button-small sl-filter-tag-btn" data-tag="<?php echo esc_attr( $tag ); ?>">
-                        <?php echo esc_html( $tag ); ?>
-                    </button>
-                <?php endforeach; ?>
+            <div class="sl-tag-filter-wrapper">
+                <div class="sl-tag-filter-controls">
+                    <button type="button" class="button button-small sl-filter-clear-all">모든 필터 해제</button>
+                    <div class="sl-filter-mode">
+                        <label>
+                            <input type="radio" name="filter-mode-<?php echo esc_attr( $plugin ); ?>" value="or" checked>
+                            <span>OR (하나라도)</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="filter-mode-<?php echo esc_attr( $plugin ); ?>" value="and">
+                            <span>AND (모두)</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="sl-tag-filter-buttons">
+                    <?php foreach ( $available_tags as $tag ) : ?>
+                        <button type="button" class="button button-small sl-filter-tag-btn" data-tag="<?php echo esc_attr( $tag ); ?>">
+                            <?php echo esc_html( $tag ); ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
             </div>
             <?php endif; ?>
             

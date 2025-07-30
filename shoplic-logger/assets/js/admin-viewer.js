@@ -7,71 +7,109 @@ jQuery(document).ready(function($) {
     // 필터 태그 버튼 클릭 이벤트
     $(document).on("click", ".sl-filter-tag-btn", function() {
         var button = $(this);
-        var selectedTag = button.data("tag");
         var card = button.closest(".sl-log-card");
-        var logContent = card.find(".sl-log-content");
-        var originalContent = logContent.data("original-content");
         
         // 토글 동작
-        if (button.hasClass("active")) {
-            // 필터 해제
-            button.removeClass("active");
+        button.toggleClass("active");
+        
+        // 필터 적용
+        applyMultipleFilters(card);
+    });
+    
+    // 다중 필터 적용 함수
+    function applyMultipleFilters(card) {
+        var logContent = card.find(".sl-log-content");
+        var originalContent = logContent.data("original-content");
+        var activeButtons = card.find(".sl-filter-tag-btn.active");
+        
+        if (activeButtons.length === 0) {
+            // 모든 필터 해제
             logContent.html(originalContent);
             card.find(".sl-filter-info").remove();
             card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
-        } else {
-            // 다른 활성 버튼 비활성화
-            card.find(".sl-filter-tag-btn").removeClass("active");
-            button.addClass("active");
+            return;
+        }
+        
+        // 선택된 태그들 수집
+        var selectedTags = [];
+        activeButtons.each(function() {
+            selectedTags.push($(this).data("tag"));
+        });
+        
+        // 필터 모드 확인 (OR 또는 AND)
+        var filterMode = card.find('input[name^="filter-mode"]:checked').val() || 'or';
+        
+        // 필터 적용
+        var lines = originalContent.split("\n");
+        var filteredLines = [];
+        var inMatchingEntry = false;
+        var entryCount = 0;
+        
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
             
-            // 필터 적용
-            var lines = originalContent.split("\n");
-            var filteredLines = [];
-            var inMatchingEntry = false;
-            var entryCount = 0;
-            
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
+            // 새로운 로그 항목의 시작을 확인
+            if (line.match(/^\[\d{4}-\d{2}-\d{2}/)) {
+                // HTML 태그를 포함한 상태에서 태그 검색
+                var tagMatch = line.match(/data-tag="([^"]+)"/g);
+                inMatchingEntry = false;
                 
-                // 새로운 로그 항목의 시작을 확인
-                if (line.match(/^\[\d{4}-\d{2}-\d{2}/)) {
-                    // HTML 태그를 포함한 상태에서 태그 검색
-                    var tagMatch = line.match(/data-tag="([^"]+)"/g);
-                    inMatchingEntry = false;
+                if (tagMatch) {
+                    var lineTags = [];
+                    for (var j = 0; j < tagMatch.length; j++) {
+                        var tag = tagMatch[j].replace(/data-tag="/, '').replace(/"/, '');
+                        lineTags.push(tag);
+                    }
                     
-                    if (tagMatch) {
-                        for (var j = 0; j < tagMatch.length; j++) {
-                            var tag = tagMatch[j].replace(/data-tag="/, '').replace(/"/, '');
-                            if (tag === selectedTag) {
+                    if (filterMode === 'or') {
+                        // OR 연산: 선택된 태그 중 하나라도 있으면 표시
+                        for (var k = 0; k < selectedTags.length; k++) {
+                            if (lineTags.indexOf(selectedTags[k]) !== -1) {
                                 inMatchingEntry = true;
                                 entryCount++;
                                 break;
                             }
                         }
+                    } else {
+                        // AND 연산: 선택된 태그가 모두 있어야 표시
+                        var matchCount = 0;
+                        for (var k = 0; k < selectedTags.length; k++) {
+                            if (lineTags.indexOf(selectedTags[k]) !== -1) {
+                                matchCount++;
+                            }
+                        }
+                        if (matchCount === selectedTags.length) {
+                            inMatchingEntry = true;
+                            entryCount++;
+                        }
                     }
                 }
-                
-                if (inMatchingEntry) {
-                    filteredLines.push(line);
-                }
             }
             
-            if (filteredLines.length > 0) {
-                logContent.html(filteredLines.join("\n"));
-                
-                // 필터 정보 추가
-                card.find(".sl-filter-info").remove();
-                card.find(".sl-log-actions").after('<div class="sl-filter-info" style="background: #f0f0f0; padding: 8px 15px; margin: 10px 0; border-radius: 3px; display: flex; justify-content: space-between; align-items: center;"><span>필터링됨: <strong>' + selectedTag + '</strong> 태그 (' + entryCount + '개 항목)</span><a href="#" class="sl-clear-filter" style="color: #d63638;">필터 해제</a></div>');
-            } else {
-                logContent.html('<p style="color: #666; padding: 20px; text-align: center;">"' + selectedTag + '" 태그가 있는 로그가 없습니다.</p>');
-                card.find(".sl-filter-info").remove();
+            if (inMatchingEntry) {
+                filteredLines.push(line);
             }
-            
-            // 태그 하이라이트
-            card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
-            card.find('.sl-tag[data-tag="' + selectedTag + '"]').addClass("sl-tag-active").css("background-color", "#d63638");
         }
-    });
+        
+        if (filteredLines.length > 0) {
+            logContent.html(filteredLines.join("\n"));
+            
+            // 필터 정보 추가
+            card.find(".sl-filter-info").remove();
+            var filterText = selectedTags.join(filterMode === 'or' ? ' 또는 ' : ' 그리고 ');
+            var modeText = filterMode === 'or' ? 'OR' : 'AND';
+            card.find(".sl-log-actions").after('<div class="sl-filter-info" style="background: #f0f0f0; padding: 8px 15px; margin: 10px 0; border-radius: 3px; display: flex; justify-content: space-between; align-items: center;"><span>필터링됨 (' + modeText + '): <strong>' + filterText + '</strong> (' + entryCount + '개 항목)</span><a href="#" class="sl-clear-filter" style="color: #d63638;">모든 필터 해제</a></div>');
+            
+            // 선택된 태그들 하이라이트
+            card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
+            selectedTags.forEach(function(tag) {
+                card.find('.sl-tag[data-tag="' + tag + '"]').addClass("sl-tag-active").css("background-color", "#d63638");
+            });
+        } else {
+            logContent.html('<p style="color: #666; padding: 20px; text-align: center;">선택한 태그 조건에 맞는 로그가 없습니다.</p>');
+            card.find(".sl-filter-info").remove();
+        }
+    }
     
     // 모든 필터 해제 버튼
     $(document).on("click", ".sl-filter-clear-all", function() {
@@ -106,6 +144,15 @@ jQuery(document).ready(function($) {
         card.find(".sl-filter-clear-all").trigger("click");
     });
     
+    // 필터 모드 변경 이벤트 (OR/AND)
+    $(document).on("change", 'input[name^="filter-mode"]', function() {
+        var card = $(this).closest(".sl-log-card");
+        // 활성 필터가 있으면 다시 적용
+        if (card.find(".sl-filter-tag-btn.active").length > 0) {
+            applyMultipleFilters(card);
+        }
+    });
+    
     // 날짜 변경 시 원본 컨텐츠 업데이트
     $(document).on("sl-content-updated", ".sl-log-card", function() {
         var logContent = $(this).find(".sl-log-content");
@@ -127,28 +174,45 @@ jQuery(document).ready(function($) {
         }
         
         var tagArray = Object.keys(availableTags).sort();
-        var filterContainer = $(this).find(".sl-tag-filter-buttons");
+        var filterWrapper = $(this).find(".sl-tag-filter-wrapper");
+        var filterButtons = $(this).find(".sl-tag-filter-buttons");
         
-        if (tagArray.length > 0 && filterContainer.length === 0) {
-            // 필터 버튼 컨테이너 추가
-            var filterHtml = '<div class="sl-tag-filter-buttons"><button type="button" class="button button-small sl-filter-clear-all">모든 필터 해제</button>';
+        if (tagArray.length > 0 && filterWrapper.length === 0) {
+            // 필터 UI 전체 추가
+            var plugin = $(this).data("plugin");
+            var filterHtml = '<div class="sl-tag-filter-wrapper">' +
+                '<div class="sl-tag-filter-controls">' +
+                '<button type="button" class="button button-small sl-filter-clear-all">모든 필터 해제</button>' +
+                '<div class="sl-filter-mode">' +
+                '<label><input type="radio" name="filter-mode-' + plugin + '" value="or" checked><span>OR (하나라도)</span></label>' +
+                '<label><input type="radio" name="filter-mode-' + plugin + '" value="and"><span>AND (모두)</span></label>' +
+                '</div></div>' +
+                '<div class="sl-tag-filter-buttons">';
             tagArray.forEach(function(tag) {
                 filterHtml += '<button type="button" class="button button-small sl-filter-tag-btn" data-tag="' + tag + '">' + tag + '</button>';
             });
-            filterHtml += '</div>';
+            filterHtml += '</div></div>';
             $(this).find(".sl-log-date-selector").after(filterHtml);
-        } else if (filterContainer.length > 0) {
-            // 기존 버튼 업데이트
-            var activeTag = filterContainer.find(".sl-filter-tag-btn.active").data("tag");
-            filterContainer.find(".sl-filter-tag-btn").remove();
+        } else if (filterButtons.length > 0) {
+            // 기존 버튼만 업데이트
+            var activeTags = [];
+            filterButtons.find(".sl-filter-tag-btn.active").each(function() {
+                activeTags.push($(this).data("tag"));
+            });
+            filterButtons.find(".sl-filter-tag-btn").remove();
             
             tagArray.forEach(function(tag) {
                 var button = $('<button type="button" class="button button-small sl-filter-tag-btn" data-tag="' + tag + '">' + tag + '</button>');
-                if (tag === activeTag) {
+                if (activeTags.indexOf(tag) !== -1) {
                     button.addClass("active");
                 }
-                filterContainer.append(button);
+                filterButtons.append(button);
             });
+            
+            // 활성 필터가 있으면 다시 적용
+            if (activeTags.length > 0) {
+                applyMultipleFilters($(this));
+            }
         }
     });
 
