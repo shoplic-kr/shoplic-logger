@@ -29,44 +29,59 @@ class SL {
     /**
      * 메시지 로그 기록
      */
-    public static function log( $message, $data = null ) {
-        self::write( self::LOG, $message, $data );
+    public static function log( $message, $data = null, $tags = [] ) {
+        self::write( self::LOG, $message, $data, $tags );
     }
     
     /**
      * 오류 로그 기록
      */
-    public static function error( $message, $data = null ) {
-        self::write( self::ERROR, $message, $data );
+    public static function error( $message, $data = null, $tags = [] ) {
+        self::write( self::ERROR, $message, $data, $tags );
     }
     
     /**
      * 정보 로그 기록
      */
-    public static function info( $message, $data = null ) {
-        self::write( self::INFO, $message, $data );
+    public static function info( $message, $data = null, $tags = [] ) {
+        self::write( self::INFO, $message, $data, $tags );
     }
     
     /**
      * <span title="개발 중 문제를 해결하기 위해 사용하는 상세한 정보 로그">디버그</span> 정보 로그 기록
      */
-    public static function debug( $message, $data = null ) {
+    public static function debug( $message, $data = null, $tags = [] ) {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            self::write( self::DEBUG, $message, $data );
+            self::write( self::DEBUG, $message, $data, $tags );
         }
     }
     
     /**
      * 경고 로그 기록
      */
-    public static function warning( $message, $data = null ) {
-        self::write( self::WARNING, $message, $data );
+    public static function warning( $message, $data = null, $tags = [] ) {
+        self::write( self::WARNING, $message, $data, $tags );
     }
     
     /**
      * 로그 파일에 쓰기
      */
-    private static function write( $level, $message, $data = null ) {
+    private static function write( $level, $message, $data = null, $tags = [] ) {
+        // Check if any tag has #on suffix
+        $should_output = false;
+        if ( ! empty( $tags ) ) {
+            foreach ( $tags as $tag ) {
+                if ( strpos( $tag, '#on' ) !== false ) {
+                    $should_output = true;
+                    break;
+                }
+            }
+            // If tags exist but none have #on, don't output
+            if ( ! $should_output ) {
+                return;
+            }
+        }
+        // If no tags provided, output normally (for backward compatibility)
         // 호출자 정보 가져오기
         $backtrace = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 3 );
         $caller = isset( $backtrace[2] ) ? $backtrace[2] : $backtrace[1];
@@ -90,6 +105,19 @@ class SL {
         $timestamp = date( 'Y-m-d H:i:s' );
         $file_info = basename( $caller['file'] ) . ':' . $caller['line'];
         
+        // Process tags - remove prefix and on/off state for log storage
+        $clean_tags = array();
+        if ( ! empty( $tags ) ) {
+            foreach ( $tags as $tag ) {
+                // Remove slt# prefix and #on/#off suffix
+                $clean_tag = preg_replace( '/^slt#/', '', $tag );
+                $clean_tag = preg_replace( '/#(on|off)$/', '', $clean_tag );
+                if ( ! empty( $clean_tag ) ) {
+                    $clean_tags[] = $clean_tag;
+                }
+            }
+        }
+        
         $log_entry = sprintf(
             "[%s] [%s] %s - %s",
             $timestamp,
@@ -97,6 +125,11 @@ class SL {
             $file_info,
             $message
         );
+        
+        // Add tags if present
+        if ( ! empty( $clean_tags ) ) {
+            $log_entry .= ' [TAGS: ' . implode( ', ', $clean_tags ) . ']';
+        }
         
         // 데이터가 제공된 경우 추가
         if ( $data !== null ) {

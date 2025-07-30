@@ -55,6 +55,68 @@ class SL_Admin_Viewer {
             'nonce' => wp_create_nonce( 'sl_ajax_nonce' )
         ) ) . ';' );
         
+        // 태그 필터링 스크립트 추가
+        wp_add_inline_script( 'jquery', '
+        jQuery(document).ready(function($) {
+            // 태그 클릭 이벤트
+            $(document).on("click", ".sl-tag", function() {
+                var tag = $(this).data("tag");
+                var card = $(this).closest(".sl-log-card");
+                var isActive = $(this).hasClass("sl-tag-active");
+                
+                if (isActive) {
+                    // 필터 해제
+                    $(this).removeClass("sl-tag-active");
+                    $(this).css("background-color", "#007cba");
+                    card.find(".sl-log-entry").show();
+                    card.find(".sl-filter-info").remove();
+                } else {
+                    // 필터 적용
+                    card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
+                    $(this).addClass("sl-tag-active");
+                    $(this).css("background-color", "#d63638");
+                    
+                    // 로그 항목 필터링
+                    var logContent = card.find(".sl-log-content");
+                    var lines = logContent.html().split("\\n");
+                    var filteredLines = [];
+                    var inMatchingEntry = false;
+                    
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        
+                        // 새로운 로그 항목의 시작을 확인
+                        if (line.match(/^\[\d{4}-\d{2}-\d{2}/)) {
+                            inMatchingEntry = line.indexOf("[TAGS:") !== -1 && line.indexOf(tag) !== -1;
+                        }
+                        
+                        if (inMatchingEntry) {
+                            filteredLines.push(line);
+                        }
+                    }
+                    
+                    if (filteredLines.length > 0) {
+                        logContent.html(filteredLines.join("\\n"));
+                        
+                        // 필터 정보 추가
+                        if (!card.find(".sl-filter-info").length) {
+                            card.find(".sl-log-actions").after(\'<div class="sl-filter-info" style="background: #f0f0f0; padding: 5px 10px; margin: 10px 0; border-radius: 3px;">필터링됨: <strong>\' + tag + \'</strong> 태그 | <a href="#" class="sl-clear-filter">필터 해제</a></div>\');
+                        }
+                    } else {
+                        logContent.html(\'<p style="color: #666;">"\' + tag + \'" 태그가 있는 로그가 없습니다.</p>\');
+                    }
+                }
+            });
+            
+            // 필터 해제 링크
+            $(document).on("click", ".sl-clear-filter", function(e) {
+                e.preventDefault();
+                var card = $(this).closest(".sl-log-card");
+                card.find(".sl-tag-active").trigger("click");
+            });
+        });
+        ' );
+        
     }
     
     /**
@@ -563,6 +625,22 @@ class SL_Admin_Viewer {
         $content = preg_replace( '/\[INFO\]/', '<span style="color: #17a2b8;">[INFO]</span>', $content );
         $content = preg_replace( '/\[DEBUG\]/', '<span style="color: #6c757d;">[DEBUG]</span>', $content );
         $content = preg_replace( '/\[LOG\]/', '<span style="color: #28a745;">[LOG]</span>', $content );
+        
+        // 태그를 클릭 가능한 배지로 형식화
+        $content = preg_replace_callback(
+            '/\[TAGS: ([^\]]+)\]/',
+            function( $matches ) {
+                $tags = explode( ', ', $matches[1] );
+                $tag_html = '<span class="sl-tags">';
+                foreach ( $tags as $tag ) {
+                    $tag = trim( $tag );
+                    $tag_html .= '<span class="sl-tag" data-tag="' . esc_attr( $tag ) . '" style="background-color: #007cba; color: white; padding: 2px 6px; margin: 0 2px; border-radius: 3px; cursor: pointer; font-size: 11px;">' . esc_html( $tag ) . '</span>';
+                }
+                $tag_html .= '</span>';
+                return $tag_html;
+            },
+            $content
+        );
         
         return $content;
     }

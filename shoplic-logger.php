@@ -65,11 +65,11 @@ if ( ! function_exists( 'sl_init_plugin' ) ) {
 add_action( 'init', 'sl_init_plugin' );
 
 // Register action hooks for logging (allows usage via do_action)
-add_action( 'sl_log', 'sl_log', 10, 3 );
-add_action( 'sl_error', 'sl_error', 10, 3 );
-add_action( 'sl_info', 'sl_info', 10, 3 );
-add_action( 'sl_warning', 'sl_warning', 10, 3 );
-add_action( 'sl_debug', 'sl_debug', 10, 3 );
+add_action( 'sl_log', 'sl_log', 10, 4 );
+add_action( 'sl_error', 'sl_error', 10, 4 );
+add_action( 'sl_info', 'sl_info', 10, 4 );
+add_action( 'sl_warning', 'sl_warning', 10, 4 );
+add_action( 'sl_debug', 'sl_debug', 10, 4 );
 
 // Schedule cleanup
 add_action( 'sl_cleanup_logs', array( 'SL', 'cleanup_old_logs' ) );
