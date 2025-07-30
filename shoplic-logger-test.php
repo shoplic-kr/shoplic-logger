@@ -8,8 +8,8 @@
 // Test 1: Basic logging with tags (all off by default)
 add_action('init', function() {
     // These logs won't output because all tags are #off
-    do_action('sl_log', 'User visited homepage', ['page' => 'home'], ['slt#navigation#off', 'slt#tracking#off']);
-    do_action('sl_info', 'System initialized', ['php_version' => PHP_VERSION], ['slt#system#off', 'slt#startup#off']);
+    do_action('sl_log', 'User visited homepage', ['page' => 'home'], ['slt#navigation@off', 'slt#tracking@off']);
+    do_action('sl_info', 'System initialized', ['php_version' => PHP_VERSION], ['slt#system@off', 'slt#startup@off']);
 });
 
 // Test 2: WooCommerce integration example
@@ -24,7 +24,7 @@ add_action('woocommerce_new_order', function($order_id) {
             'customer_email' => $order->get_billing_email(),
             'items' => $order->get_item_count()
         ],
-        ['slt#woocommerce#off', 'slt#order#off', 'slt#sales#off']
+        ['slt#woocommerce@off', 'slt#order@off', 'slt#sales@off']
     );
 });
 
@@ -37,7 +37,7 @@ add_action('wp_login_failed', function($username) {
             'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
             'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
         ],
-        ['slt#security#off', 'slt#auth#off', 'slt#failed-login#off']
+        ['slt#security@off', 'slt#auth@off', 'slt#failed-login@off']
     );
 });
 
@@ -51,7 +51,7 @@ add_action('http_api_curl', function($handle, $parsed_args, $url) {
             'method' => $parsed_args['method'] ?? 'GET',
             'timeout' => $parsed_args['timeout'] ?? 'default'
         ],
-        ['slt#api#off', 'slt#http#off', 'slt#external#off']
+        ['slt#api@off', 'slt#http@off', 'slt#external@off']
     );
 }, 10, 3);
 
@@ -68,7 +68,7 @@ add_action('shutdown', function() {
                 'memory_peak' => size_format($memory_peak),
                 'url' => $_SERVER['REQUEST_URI'] ?? 'unknown'
             ],
-            ['slt#performance#off', 'slt#slow-request#off', 'slt#monitoring#off']
+            ['slt#performance@off', 'slt#slow-request@off', 'slt#monitoring@off']
         );
     }
 });
@@ -78,7 +78,7 @@ add_action('plugins_loaded', function() {
     do_action('sl_error',
         'Critical system error example',
         ['error_code' => 'TEST_001', 'severity' => 'high'],
-        ['slt#test#off', 'slt#critical#on', 'slt#system#off'] // Note: critical is ON
+        ['slt#test@off', 'slt#critical@on', 'slt#system@off'] // Note: critical is ON
     );
 });
 
@@ -88,7 +88,7 @@ add_filter('query', function($query) {
         do_action('sl_debug',
             'Database query on posts table',
             ['query' => substr($query, 0, 100) . '...'],
-            ['slt#database#off', 'slt#query#off', 'slt#posts#off']
+            ['slt#database@off', 'slt#query@off', 'slt#posts@off']
         );
     }
     return $query;
@@ -100,15 +100,15 @@ add_filter('query', function($query) {
  * To enable specific logs, use these commands:
  * 
  * 1. Enable all WooCommerce logs:
- *    find . -name "*.php" -exec sed -i 's/slt#woocommerce#off/slt#woocommerce#on/g' {} +
+ *    find . -name "*.php" -exec sed -i 's/slt#woocommerce@off/slt#woocommerce@on/g' {} +
  * 
  * 2. Enable security and auth logs:
- *    find . -name "*.php" -exec sed -i -e 's/slt#security#off/slt#security#on/g' -e 's/slt#auth#off/slt#auth#on/g' {} +
+ *    find . -name "*.php" -exec sed -i -e 's/slt#security@off/slt#security@on/g' -e 's/slt#auth@off/slt#auth@on/g' {} +
  * 
  * 3. Enable performance monitoring:
- *    find . -name "*.php" -exec sed -i -e 's/slt#performance#off/slt#performance#on/g' -e 's/slt#slow-request#off/slt#slow-request#on/g' {} +
+ *    find . -name "*.php" -exec sed -i -e 's/slt#performance@off/slt#performance@on/g' -e 's/slt#slow-request@off/slt#slow-request@on/g' {} +
  * 
  * 4. Turn on only critical logs:
  *    find . -name "*.php" -exec sed -i 's/#on\]/#off]/g' {} +
- *    find . -name "*.php" -exec sed -i 's/slt#critical#off/slt#critical#on/g' {} +
+ *    find . -name "*.php" -exec sed -i 's/slt#critical@off/slt#critical@on/g' {} +
  */

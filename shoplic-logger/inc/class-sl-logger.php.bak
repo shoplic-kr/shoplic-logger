@@ -67,16 +67,16 @@ class SL {
      * 로그 파일에 쓰기
      */
     private static function write( $level, $message, $data = null, $tags = [] ) {
-        // Check if any tag has @on suffix
+        // Check if any tag has #on suffix
         $should_output = false;
         if ( ! empty( $tags ) ) {
             foreach ( $tags as $tag ) {
-                if ( strpos( $tag, '@on' ) !== false ) {
+                if ( strpos( $tag, '#on' ) !== false ) {
                     $should_output = true;
                     break;
                 }
             }
-            // If tags exist but none have @on, don't output
+            // If tags exist but none have #on, don't output
             if ( ! $should_output ) {
                 return;
             }
@@ -109,9 +109,9 @@ class SL {
         $clean_tags = array();
         if ( ! empty( $tags ) ) {
             foreach ( $tags as $tag ) {
-                // Remove slt# prefix and @on/@off suffix
+                // Remove slt# prefix and #on/#off suffix
                 $clean_tag = preg_replace( '/^slt#/', '', $tag );
-                $clean_tag = preg_replace( '/@(on|off)$/', '', $clean_tag );
+                $clean_tag = preg_replace( '/#(on|off)$/', '', $clean_tag );
                 if ( ! empty( $clean_tag ) ) {
                     $clean_tags[] = $clean_tag;
                 }

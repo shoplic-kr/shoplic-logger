@@ -1,0 +1,209 @@
+# Shoplic Logger Instructions for WordPress
+
+This project uses Shoplic Logger with a tag-based control system. Logs are written with tags in `@off` state by default, and you control which logs appear by toggling tags to `@on`.
+
+## Core Actions
+
+When adding logging to WordPress projects, use these Shoplic Logger actions:
+
+- `do_action('sl_log', $message, $data, $tags)` - General logging
+- `do_action('sl_error', $message, $data, $tags)` - Errors
+- `do_action('sl_info', $message, $data, $tags)` - Information
+- `do_action('sl_warning', $message, $data, $tags)` - Warnings
+- `do_action('sl_debug', $message, $data, $tags)` - Debug (only when WP_DEBUG is true)
+
+## Adding Logs to Code
+
+### Basic Usage with Tags
+```php
+// Always include tags in @off state by default
+do_action('sl_log', 
+    sprintf('[%s - %s] Payment started', basename(__FILE__), __METHOD__),
+    $payment_data, 
+    ['slt#payment@off', 'slt#checkout@off']
+);
+
+do_action('sl_error', 
+    sprintf('[%s - %s] API timeout', basename(__FILE__), __METHOD__),
+    $error_data, 
+    ['slt#api@off', 'slt#critical@off']
+);
+```
+
+### Always Include Context
+```php
+do_action('sl_error',
+    sprintf('[%s - %s] Payment failed', basename(__FILE__), __METHOD__),
+    ['order_id' => 456, 'error' => 'Card declined'],
+    ['slt#payment#off', 'slt#error#off', 'slt#critical#off']
+);
+```
+
+### Use Structured Data
+```php
+// Good - structured data with context
+do_action('sl_log', 
+    sprintf('[%s - %s] User registered', basename(__FILE__), __METHOD__),
+    ['user_id' => 123, 'email' => 'user@example.com'],
+    ['slt#user-register#off', 'slt#auth#off']
+);
+
+// Bad - unstructured string without context
+do_action('sl_log', 'User registered. ID: 123, Email: user@example.com');
+```
+
+### Examples
+
+#### WooCommerce Order
+```php
+add_action('woocommerce_new_order', function($order_id) {
+    $order = wc_get_order($order_id);
+    
+    do_action('sl_info',
+        sprintf('[%s - %s] New order', basename(__FILE__), __FUNCTION__),
+        [
+            'order_id' => $order_id,
+            'total' => $order->get_total(),
+            'customer_email' => $order->get_billing_email()
+        ],
+        ['slt#woocommerce#off', 'slt#order#off', 'slt#sales#off']
+    );
+});
+```
+
+#### API Errors
+```php
+$response = wp_remote_get($api_url);
+
+if (is_wp_error($response)) {
+    do_action('sl_error',
+        sprintf('[%s - %s] API failed', basename(__FILE__), __METHOD__),
+        [
+            'url' => $api_url,
+            'error' => $response->get_error_message()
+        ],
+        ['slt#api#off', 'slt#error#off', 'slt#critical#off']
+    );
+}
+```
+
+## Quick Commands
+
+### Enable specific tags
+```bash
+# Turn on payment-related logs
+find . -name "*.php" -type f -exec sed -i 's/slt#payment#off/slt#payment#on/g' {} +
+
+# Turn on error and critical logs
+find . -name "*.php" -type f -exec sed -i -e 's/slt#error#off/slt#error#on/g' -e 's/slt#critical#off/slt#critical#on/g' {} +
+
+# Turn on WooCommerce logs
+find . -name "*.php" -type f -exec sed -i 's/slt#woocommerce#off/slt#woocommerce#on/g' {} +
+```
+
+### Disable all logs (reset)
+```bash
+find . -name "*.php" -type f -exec sed -i 's/#on\]/#off]/g' {} +
+```
+
+## Tag Discovery
+
+### Find all tags in codebase
+```bash
+grep -r "slt#" --include="*.php" | grep -o "slt#[^'\"]*" | sort | uniq
+```
+
+### Find specific tag usage
+```bash
+grep -r "slt#payment" --include="*.php"
+```
+
+### Count tag occurrences
+```bash
+grep -r "slt#" --include="*.php" -o | cut -d: -f2 | sort | uniq -c
+```
+
+## Common Scenarios
+
+### Debug checkout process
+```bash
+find . -name "*.php" -type f -exec sed -i -e 's/slt#checkout#off/slt#checkout#on/g' -e 's/slt#payment#off/slt#payment#on/g' -e 's/slt#cart#off/slt#cart#on/g' {} +
+```
+
+### Debug user authentication
+```bash
+find . -name "*.php" -type f -exec sed -i -e 's/slt#auth#off/slt#auth#on/g' -e 's/slt#security#off/slt#security#on/g' -e 's/slt#failed-login#off/slt#failed-login#on/g' {} +
+```
+
+### Monitor API and performance
+```bash
+find . -name "*.php" -type f -exec sed -i -e 's/slt#api#off/slt#api#on/g' -e 's/slt#performance#off/slt#performance#on/g' {} +
+```
+
+### WooCommerce order tracking
+```bash
+find . -name "*.php" -type f -exec sed -i -e 's/slt#woocommerce#off/slt#woocommerce#on/g' -e 's/slt#order#off/slt#order#on/g' -e 's/slt#sales#off/slt#sales#on/g' {} +
+```
+
+### System monitoring
+```bash
+find . -name "*.php" -type f -exec sed -i -e 's/slt#system#off/slt#system#on/g' -e 's/slt#startup#off/slt#startup#on/g' {} +
+```
+
+## Current Tags in Codebase
+
+Based on the current codebase, these tags are available:
+- `navigation` - Page navigation tracking
+- `tracking` - General tracking events
+- `system` - System-level events
+- `startup` - Initialization events
+- `woocommerce` - WooCommerce integration
+- `order` - Order-related events
+- `sales` - Sales tracking
+- `security` - Security events
+- `auth` - Authentication events
+- `failed-login` - Failed login attempts
+- `api` - API calls and responses
+- `error` - Error events
+- `critical` - Critical errors
+- `performance` - Performance monitoring
+- `payment` - Payment processing
+- `checkout` - Checkout process
+- `cart` - Shopping cart events
+- `user-register` - User registration
+- `database` - Database operations
+- `debug` - Debug information
+
+## Tag Format
+
+- **In code**: `['slt#tagname#off']` or `['slt#tagname#on']`
+- **In logs**: `[TAGS: tagname]` (clean format without prefix/state)
+- **Output rule**: Only logs with at least one `#on` tag are written to file
+
+## Tag Control Best Practices
+
+1. **Always reset first**: Turn off all tags before enabling specific ones
+   ```bash
+   find . -name "*.php" -type f -exec sed -i 's/#on\]/#off]/g' {} +
+   ```
+
+2. **Check current states**: Before changing tags
+   ```bash
+   grep -r "slt#tagname#" --include="*.php" | head -10
+   ```
+
+3. **Use specific paths**: When working on plugins/themes
+   ```bash
+   find ./wp-content/plugins/my-plugin -name "*.php" -type f -exec sed -i 's/slt#payment#off/slt#payment#on/g' {} +
+   ```
+
+4. **Group related tags**: Enable related functionality together for better debugging
+
+## Tag Naming Conventions
+
+When adding new logs, use these tag categories:
+- **Feature tags**: `payment`, `checkout`, `cart`, `user-register`
+- **Level tags**: `error`, `critical`, `warning`, `info`, `debug`
+- **Component tags**: `database`, `api`, `cache`, `session`
+- **Performance tags**: `performance`, `slow-query`, `memory`
+- **Integration tags**: `woocommerce`, `stripe`, `mailchimp`
