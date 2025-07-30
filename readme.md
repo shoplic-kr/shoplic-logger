@@ -1,51 +1,51 @@
-# Shoplic Logger - WordPress 디버깅 및 로깅 솔루션
+# Shoplic Logger - 태그 기반 WordPress 로깅 솔루션
 
-Shoplic Logger는 WordPress 애플리케이션의 디버깅과 모니터링을 위한 강력한 파일 기반 로깅 솔루션입니다. 플러그인/테마별 자동 분류, 시각적 관리자 인터페이스, AI 친화적인 로그 형식을 제공합니다.
+Shoplic Logger는 태그 기반 제어 시스템을 통해 선택적 로깅이 가능한 WordPress 디버깅 솔루션입니다. 기본적으로 모든 로그는 `@off` 상태로 작성되며, 필요한 태그만 `@on`으로 변경하여 원하는 로그를 활성화할 수 있습니다.
 
 ## 🚀 주요 특징
 
-### 1. **자동 소스 감지 및 분류**
+### 1. **태그 기반 선택적 로깅**
+모든 로그는 태그와 함께 작성되며, `@on` 상태의 태그가 있는 로그만 파일에 기록됩니다:
+```php
+// 태그가 모두 @off 상태이므로 로그가 기록되지 않음
+do_action('sl_log', '결제 프로세스 시작', $data, ['slt#payment@off', 'slt#checkout@off']);
+
+// slt#critical이 @on 상태이므로 로그가 기록됨
+do_action('sl_error', '치명적 오류', $error, ['slt#api@off', 'slt#critical@on']);
+```
+
+### 2. **간편한 태그 제어**
+`find`와 `sed` 명령어로 태그를 쉽게 on/off 할 수 있습니다:
+```bash
+# payment 관련 로그 활성화
+find . -name "*.php" -type f -exec sed -i 's/slt#payment@off/slt#payment@on/g' {} +
+
+# 모든 로그 비활성화 (초기화)
+find . -name "*.php" -type f -exec sed -i 's/@on\]/@off]/g' {} +
+```
+
+### 3. **자동 소스 감지 및 분류**
 로그가 발생한 위치를 자동으로 감지하여 플러그인/테마별로 분류합니다:
 - 일반 플러그인: `/wp-content/sl-logs/plugin-name/`
 - MU 플러그인: `mu-` 접두사로 분류
 - 테마: `theme-` 접두사로 분류
 - WordPress 코어, 기타 위치별 자동 정리
 
-### 2. **간편한 헬퍼 함수**
-```php
-sl_log('일반 로그 메시지');
-sl_error('에러가 발생했습니다', $error_data);
-sl_info('정보성 메시지', $info_data);
-sl_warning('경고 메시지');
-sl_debug('디버그 정보'); // WP_DEBUG가 true일 때만 작동
-```
-
-### 3. **시각적 관리자 인터페이스**
+### 4. **시각적 관리자 인터페이스**
 WordPress 관리자 메뉴 "쇼플릭 로거"에서 제공:
-- 로그 뷰어: 날짜별 필터링, 실시간 로그 확인
+- 로그 뷰어: 날짜별 필터링, 태그별 필터링
 - 로그 관리: 클리어, 삭제, 클립보드 복사
 - 디버그 설정: wp-config.php 디버그 상수 직접 관리
-
-### 4. **조건부 로깅**
-환경에 따른 선택적 로깅 지원:
-```php
-// 프로덕션에서는 로깅 비활성화
-$is_production = defined('WP_ENV') && WP_ENV === 'production';
-sl_log('개발 환경 전용 로그', null, $is_production);
-
-// 에러가 있을 때만 로깅
-sl_error('에러 발생', $error_details, empty($error));
-```
 
 ### 5. **액션 기반 사용법** (플러그인 의존성 제거)
 플러그인이 비활성화되어도 에러가 발생하지 않는 안전한 방법:
 ```php
-// 직접 호출 대신 do_action 사용
-do_action('sl_log', '일반 로그 메시지');
-do_action('sl_error', '에러가 발생했습니다', $error_data);
-do_action('sl_info', '정보성 메시지', $info_data);
-do_action('sl_warning', '경고 메시지');
-do_action('sl_debug', '디버그 정보');
+// 태그와 함께 사용
+do_action('sl_log', '사용자 등록', $user_data, ['slt#user-register@off', 'slt#auth@off']);
+do_action('sl_error', 'API 타임아웃', $error, ['slt#api@off', 'slt#critical@off']);
+do_action('sl_info', '주문 완료', $order_data, ['slt#order@off', 'slt#sales@off']);
+do_action('sl_warning', '재고 부족', $stock_data, ['slt#inventory@off', 'slt#warning@off']);
+do_action('sl_debug', '쿼리 실행', $query_data, ['slt#database@off', 'slt#performance@off']);
 ```
 
 ## 📥 설치 방법
@@ -56,65 +56,83 @@ do_action('sl_debug', '디버그 정보');
 
 ## 📖 사용법
 
-### 두 가지 사용 방법
+### 태그와 함께 로깅하기
 
-#### 방법 1: 직접 함수 호출 (MU 플러그인에서 안전)
+모든 로그는 태그와 함께 작성해야 합니다. 태그는 `slt#태그명@상태` 형식을 사용합니다:
+
 ```php
-// 간단한 메시지
-sl_log('프로세스가 시작되었습니다');
-
-// 데이터와 함께 로깅
-sl_log('사용자 등록', ['user_id' => 123, 'email' => 'user@example.com']);
-```
-
-#### 방법 2: 액션 사용 (플러그인 의존성 없음)
-```php
-// 플러그인이 없어도 에러가 발생하지 않음
-do_action('sl_log', '프로세스가 시작되었습니다');
-
-// 데이터와 함께 로깅
-do_action('sl_log', '사용자 등록', ['user_id' => 123, 'email' => 'user@example.com']);
-```
-
-### 언제 어떤 방법을 사용할까?
-
-- **직접 함수 호출**: MU 플러그인, 또는 Shoplic Logger가 확실히 설치된 환경
-- **액션 사용**: 테마, 일반 플러그인, 또는 Shoplic Logger 설치 여부가 불확실한 환경
-
-### 컨텍스트 정보 포함 (권장)
-```php
-// 직접 호출 방식
-sl_log(
-    sprintf('[%s - %s] 주문 처리 완료', basename(__FILE__), __METHOD__),
-    ['order_id' => $order_id, 'total' => $total]
+// 기본 사용법 - 태그는 @off 상태로 시작
+do_action('sl_log', 
+    sprintf('[%s - %s] 결제 시작', basename(__FILE__), __METHOD__),
+    $payment_data, 
+    ['slt#payment@off', 'slt#checkout@off']
 );
 
-// 액션 방식
-do_action('sl_log',
-    sprintf('[%s - %s] 주문 처리 완료', basename(__FILE__), __METHOD__),
-    ['order_id' => $order_id, 'total' => $total]
+// 여러 태그 사용
+do_action('sl_error', 
+    sprintf('[%s - %s] API 호출 실패', basename(__FILE__), __METHOD__),
+    ['url' => $api_url, 'error' => $error_message], 
+    ['slt#api@off', 'slt#error@off', 'slt#critical@off']
 );
+```
+
+### 태그 on/off 제어
+
+#### 특정 태그 활성화
+```bash
+# payment 태그만 활성화
+find . -name "*.php" -type f -exec sed -i 's/slt#payment@off/slt#payment@on/g' {} +
+
+# error와 critical 태그 동시 활성화
+find . -name "*.php" -type f -exec sed -i -e 's/slt#error@off/slt#error@on/g' -e 's/slt#critical@off/slt#critical@on/g' {} +
+```
+
+#### 모든 태그 비활성화 (초기화)
+```bash
+find . -name "*.php" -type f -exec sed -i 's/@on\]/@off]/g' {} +
+```
+
+#### 태그 검색 및 확인
+```bash
+# 모든 태그 목록 보기
+grep -r "slt#" --include="*.php" | grep -o "slt#[^'\"]*" | sort | uniq
+
+# 특정 태그가 사용된 위치 찾기
+grep -r "slt#payment" --include="*.php"
+
+# 현재 @on 상태인 태그 확인
+grep -r "@on\]" --include="*.php"
 ```
 
 ### 로그 레벨별 사용
 ```php
-// 직접 호출 방식
-sl_error(
-    sprintf('[%s - %s] 결제 실패', basename(__FILE__), __METHOD__),
-    ['order_id' => 456, 'error' => '카드 승인 거부']
+// 정보성 로그
+do_action('sl_info',
+    sprintf('[%s - %s] 새 주문', basename(__FILE__), __FUNCTION__),
+    ['order_id' => 789, 'total' => $order->get_total()],
+    ['slt#woocommerce@off', 'slt#order@off', 'slt#sales@off']
 );
-sl_info('새 주문 생성', ['order_id' => 789]);
-sl_warning('재고 부족 임박', ['product_id' => 101, 'stock' => 5]);
-sl_debug('메모리 사용량', ['memory' => memory_get_usage()]);
 
-// 액션 방식
+// 에러 로그
 do_action('sl_error',
     sprintf('[%s - %s] 결제 실패', basename(__FILE__), __METHOD__),
-    ['order_id' => 456, 'error' => '카드 승인 거부']
+    ['order_id' => 456, 'error' => '카드 승인 거부'],
+    ['slt#payment@off', 'slt#error@off', 'slt#critical@off']
 );
-do_action('sl_info', '새 주문 생성', ['order_id' => 789]);
-do_action('sl_warning', '재고 부족 임박', ['product_id' => 101, 'stock' => 5]);
-do_action('sl_debug', '메모리 사용량', ['memory' => memory_get_usage()]);
+
+// 경고 로그
+do_action('sl_warning',
+    sprintf('[%s - %s] 재고 부족', basename(__FILE__), __METHOD__),
+    ['product_id' => 101, 'stock' => 5],
+    ['slt#inventory@off', 'slt#warning@off']
+);
+
+// 디버그 로그 (WP_DEBUG가 true일 때만)
+do_action('sl_debug',
+    sprintf('[%s - %s] 메모리 사용량', basename(__FILE__), __METHOD__),
+    ['memory' => memory_get_usage()],
+    ['slt#performance@off', 'slt#debug@off']
+);
 ```
 
 ## 🎯 실제 사용 예제
@@ -124,38 +142,15 @@ do_action('sl_debug', '메모리 사용량', ['memory' => memory_get_usage()]);
 add_action('woocommerce_new_order', function($order_id) {
     $order = wc_get_order($order_id);
     
-    // MU 플러그인 내부에서는 직접 호출
-    sl_info(
+    do_action('sl_info',
         sprintf('[%s - %s] 새 주문 접수', basename(__FILE__), __FUNCTION__),
         [
             'order_id' => $order_id,
             'total' => $order->get_total(),
             'customer' => $order->get_billing_email()
-        ]
+        ],
+        ['slt#woocommerce@off', 'slt#order@off', 'slt#sales@off']
     );
-});
-```
-
-### 일반 플러그인에서 안전한 사용
-```php
-// 플러그인이 비활성화되어도 에러가 발생하지 않음
-add_action('init', function() {
-    do_action('sl_log', 
-        sprintf('[%s - %s] 플러그인 초기화', basename(__FILE__), __FUNCTION__)
-    );
-});
-
-// 조건부 로깅과 함께 사용
-add_filter('the_content', function($content) {
-    $is_production = defined('WP_ENV') && WP_ENV === 'production';
-    
-    do_action('sl_debug',
-        sprintf('[%s - %s] 콘텐츠 필터 실행', basename(__FILE__), __FUNCTION__),
-        ['post_id' => get_the_ID()],
-        $is_production // 프로덕션에서는 로깅하지 않음
-    );
-    
-    return $content;
 });
 ```
 
@@ -164,21 +159,23 @@ add_filter('the_content', function($content) {
 $response = wp_remote_get($api_url);
 
 if (is_wp_error($response)) {
-    sl_error(
+    do_action('sl_error',
         sprintf('[%s - %s] API 호출 실패', basename(__FILE__), __METHOD__),
         [
             'url' => $api_url,
             'error' => $response->get_error_message(),
             'error_code' => $response->get_error_code()
-        ]
+        ],
+        ['slt#api@off', 'slt#error@off', 'slt#critical@off']
     );
 } else {
-    sl_debug(
+    do_action('sl_debug',
         sprintf('[%s - %s] API 응답', basename(__FILE__), __METHOD__),
         [
             'status_code' => wp_remote_retrieve_response_code($response),
             'body' => wp_remote_retrieve_body($response)
-        ]
+        ],
+        ['slt#api@off', 'slt#debug@off', 'slt#http@off']
     );
 }
 ```
@@ -192,16 +189,58 @@ do_complex_operation();
 
 $execution_time = microtime(true) - $start_time;
 
-// 실행 시간이 1초 이상일 때만 경고
-$is_fast = $execution_time < 1.0;
-sl_warning(
-    sprintf('[%s - %s] 느린 작업 감지', basename(__FILE__), __METHOD__),
-    [
-        'execution_time' => $execution_time,
-        'memory_peak' => memory_get_peak_usage(true) / 1024 / 1024 . ' MB'
-    ],
-    $is_fast // 빠르면 로깅하지 않음
-);
+// 실행 시간이 1초 이상일 때 경고
+if ($execution_time >= 1.0) {
+    do_action('sl_warning',
+        sprintf('[%s - %s] 느린 작업 감지', basename(__FILE__), __METHOD__),
+        [
+            'execution_time' => $execution_time,
+            'memory_peak' => memory_get_peak_usage(true) / 1024 / 1024 . ' MB'
+        ],
+        ['slt#performance@off', 'slt#slow-request@off', 'slt#monitoring@off']
+    );
+}
+```
+
+### 사용자 인증 추적
+```php
+add_action('wp_login_failed', function($username) {
+    do_action('sl_warning',
+        sprintf('[%s - %s] 로그인 실패', basename(__FILE__), __FUNCTION__),
+        [
+            'username' => $username,
+            'ip' => $_SERVER['REMOTE_ADDR'],
+            'user_agent' => $_SERVER['HTTP_USER_AGENT']
+        ],
+        ['slt#security@off', 'slt#auth@off', 'slt#failed-login@off']
+    );
+});
+```
+
+## 🏷️ 일반적인 태그 시나리오
+
+### 결제 프로세스 디버깅
+```bash
+# 결제 관련 모든 로그 활성화
+find . -name "*.php" -type f -exec sed -i -e 's/slt#checkout@off/slt#checkout@on/g' -e 's/slt#payment@off/slt#payment@on/g' -e 's/slt#cart@off/slt#cart@on/g' {} +
+```
+
+### 보안 이벤트 모니터링
+```bash
+# 보안 및 인증 관련 로그 활성화
+find . -name "*.php" -type f -exec sed -i -e 's/slt#security@off/slt#security@on/g' -e 's/slt#auth@off/slt#auth@on/g' -e 's/slt#failed-login@off/slt#failed-login@on/g' {} +
+```
+
+### API 및 외부 통신 추적
+```bash
+# API 호출 관련 로그 활성화
+find . -name "*.php" -type f -exec sed -i -e 's/slt#api@off/slt#api@on/g' -e 's/slt#http@off/slt#http@on/g' -e 's/slt#external@off/slt#external@on/g' {} +
+```
+
+### 성능 문제 진단
+```bash
+# 성능 관련 로그 활성화
+find . -name "*.php" -type f -exec sed -i -e 's/slt#performance@off/slt#performance@on/g' -e 's/slt#slow-request@off/slt#slow-request@on/g' -e 's/slt#database@off/slt#database@on/g' {} +
 ```
 
 ## 🛠️ 관리자 인터페이스
@@ -246,20 +285,59 @@ define('WP_DEBUG_LOG', true);     // 로그 파일 기록
 define('WP_DEBUG_DISPLAY', false); // 화면 표시 비활성화
 ```
 
-### 조건부 로깅 패턴
-```php
-// 개발 환경에서만 로깅
-$is_dev = defined('WP_ENV') && WP_ENV === 'development';
-sl_debug('개발 디버그 정보', $data, !$is_dev);
+### 사용 가능한 태그 목록
 
-// 관리자만 로깅
-$is_admin = current_user_can('manage_options');
-sl_info('관리자 작업', $admin_data, !$is_admin);
+현재 코드베이스에서 일반적으로 사용되는 태그:
+- `navigation` - 페이지 네비게이션 추적
+- `tracking` - 일반 추적 이벤트
+- `system` - 시스템 레벨 이벤트
+- `startup` - 초기화 이벤트
+- `woocommerce` - WooCommerce 통합
+- `order` - 주문 관련 이벤트
+- `sales` - 판매 추적
+- `security` - 보안 이벤트
+- `auth` - 인증 이벤트
+- `failed-login` - 실패한 로그인 시도
+- `api` - API 호출 및 응답
+- `error` - 에러 이벤트
+- `critical` - 치명적 에러
+- `performance` - 성능 모니터링
+- `payment` - 결제 처리
+- `checkout` - 체크아웃 프로세스
+- `cart` - 장바구니 이벤트
+- `user-register` - 사용자 등록
+- `database` - 데이터베이스 작업
+- `debug` - 디버그 정보
 
-// 특정 사용자만 로깅
-$is_test_user = get_current_user_id() === 42;
-sl_debug('테스트 사용자 활동', $activity, !$is_test_user);
+## 💡 태그 관리 모범 사례
+
+### 1. 항상 초기화부터 시작
+```bash
+# 작업 전 모든 태그를 off로 초기화
+find . -name "*.php" -type f -exec sed -i 's/@on\]/@off]/g' {} +
 ```
+
+### 2. 현재 상태 확인
+```bash
+# 특정 태그의 현재 상태 확인
+grep -r "slt#payment@" --include="*.php" | head -10
+
+# 현재 활성화된 모든 태그 보기
+grep -r "@on\]" --include="*.php"
+```
+
+### 3. 특정 디렉토리만 대상으로
+```bash
+# 특정 플러그인만 대상으로 태그 활성화
+find ./wp-content/plugins/my-plugin -name "*.php" -type f -exec sed -i 's/slt#payment@off/slt#payment@on/g' {} +
+```
+
+### 4. 관련 태그 그룹핑
+디버깅 목적에 따라 관련 태그를 함께 활성화:
+- **결제 디버깅**: `payment`, `checkout`, `cart`
+- **보안 모니터링**: `security`, `auth`, `failed-login`
+- **성능 분석**: `performance`, `slow-request`, `database`
+- **API 추적**: `api`, `http`, `external`
 
 ## 🔒 보안 기능
 
@@ -270,18 +348,29 @@ sl_debug('테스트 사용자 활동', $activity, !$is_test_user);
 
 ## 🚀 성능 최적화
 
+- 태그 기반 선택적 로깅으로 불필요한 로그 방지
 - 최소한의 오버헤드로 가벼운 동작
 - 필요시에만 파일 로드
 - WP_DEBUG false 시 디버그 로깅 자동 비활성화
 - 자동 정리로 디스크 공간 관리
 
-## 🤖 AI 친화적 로그 형식
+## 📝 로그 형식
 
-구조화된 로그 형식으로 AI 시스템 분석에 최적화:
+### 로그 파일에 저장되는 형식
 ```
-[2024-01-16 10:30:45] [INFO] [checkout.php - process_order] 주문 처리 완료
-Data: {"order_id":789,"total":"50000","payment":"card"}
+[2024-01-16 10:30:45] [INFO] checkout.php:123 - 주문 처리 완료 [TAGS: payment, checkout]
+    Data: Array
+    (
+        [order_id] => 789
+        [total] => 50000
+        [payment] => card
+    )
 ```
+
+### 태그 형식 규칙
+- **코드에서**: `['slt#tagname@off']` 또는 `['slt#tagname@on']`
+- **로그 파일에서**: `[TAGS: tagname]` (접두사와 상태 제거)
+- **출력 규칙**: 최소 하나의 `@on` 태그가 있는 로그만 파일에 기록
 
 ## 📝 라이선스
 
