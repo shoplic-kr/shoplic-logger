@@ -275,6 +275,45 @@ class SL_Admin_Viewer {
                 opacity: 0.8;
                 transform: scale(1.05);
             }
+            .sl-debug-filter-btn {
+                background: #f0f0f1;
+                border-color: #c3c4c7;
+                color: #50575e;
+                padding: 3px 10px;
+                font-size: 12px;
+                line-height: 1.5;
+                height: auto;
+            }
+            .sl-debug-filter-btn:hover {
+                background: #e5e5e5;
+                border-color: #8c8f94;
+                color: #23282d;
+            }
+            .sl-debug-filter-btn.active {
+                background: #007cba;
+                border-color: #007cba;
+                color: #fff;
+            }
+            .sl-debug-filter-btn.active:hover {
+                background: #005a87;
+                border-color: #005a87;
+                color: #fff;
+            }
+            .sl-debug-filter-clear {
+                padding: 3px 10px;
+                font-size: 12px;
+                line-height: 1.5;
+                height: auto;
+            }
+            .sl-debug-filter-clear:hover {
+                background: #b32d2e;
+                border-color: #b32d2e;
+                color: #fff;
+            }
+            .sl-debug-line {
+                line-height: 1.4;
+                padding: 2px 0;
+            }
         </style>
         <?php
     }
@@ -374,11 +413,29 @@ class SL_Admin_Viewer {
         $debug_log_file = WP_CONTENT_DIR . '/debug.log';
         $file_size = file_exists( $debug_log_file ) ? size_format( filesize( $debug_log_file ) ) : '0 B';
         ?>
-        <div class="sl-log-card">
+        <div class="sl-log-card" data-plugin="debug-log">
             <h3>WordPress Debug Log</h3>
             
             <div class="sl-log-date-selector">
                 <p style="margin: 5px 0; color: #666;">파일 크기: <span class="sl-debug-log-size"><?php echo esc_html( $file_size ); ?></span></p>
+            </div>
+            
+            <div class="sl-debug-filter-wrapper" style="margin-bottom: 15px; border: 1px solid #c3c4c7; border-radius: 4px; padding: 10px; background: #f6f7f7;">
+                <div class="sl-debug-filter-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 13px; color: #50575e;">필터:</span>
+                    <button type="button" class="button button-small sl-debug-filter-clear" style="background: #d63638; border-color: #d63638; color: #fff;">모든 필터 해제</button>
+                </div>
+                <div class="sl-debug-filter-buttons" style="display: flex; gap: 5px;">
+                    <button type="button" class="button button-small sl-debug-filter-btn" data-type="notice" style="background: #f0f0f1;">
+                        Notice
+                    </button>
+                    <button type="button" class="button button-small sl-debug-filter-btn" data-type="fatal" style="background: #f0f0f1;">
+                        Fatal Error
+                    </button>
+                    <button type="button" class="button button-small sl-debug-filter-btn" data-type="normal" style="background: #f0f0f1;">
+                        Normal Debug
+                    </button>
+                </div>
             </div>
             
             <div class="sl-log-actions">
@@ -387,7 +444,7 @@ class SL_Admin_Viewer {
                 <button type="button" class="button sl-refresh-debug-log">새로고침</button>
             </div>
             
-            <div class="sl-log-content sl-debug-log-content">
+            <div class="sl-log-content sl-debug-log-content" data-original-content="">
                 <?php
                 if ( file_exists( $debug_log_file ) ) {
                     // 파일 크기가 너무 크면 마지막 부분만 읽기
@@ -408,7 +465,7 @@ class SL_Admin_Viewer {
                         $content = file_get_contents( $debug_log_file );
                     }
                     
-                    echo $this->format_log_content( $content );
+                    echo $this->format_debug_log_content( $content );
                 } else {
                     echo '<p>debug.log 파일이 없습니다.</p>';
                 }
@@ -474,6 +531,67 @@ class SL_Admin_Viewer {
         );
         
         return $content;
+    }
+    
+    /**
+     * debug.log 내용을 색상으로 형식화
+     */
+    public function format_debug_log_content( $content ) {
+        // 먼저 HTML 이스케이프
+        $content = esc_html( $content );
+        
+        // 각 줄을 분석하여 타입 추가
+        $lines = explode( "\n", $content );
+        $formatted_lines = array();
+        
+        foreach ( $lines as $line ) {
+            $line_class = '';
+            $line_type = '';
+            
+            // PHP Notice
+            if ( preg_match( '/PHP Notice:/i', $line ) ) {
+                $line_class = 'sl-debug-line-notice';
+                $line_type = 'notice';
+                $line = preg_replace( '/(PHP Notice:)/i', '<span style="color: #ffc107; font-weight: bold;">$1</span>', $line );
+            }
+            // PHP Fatal error
+            elseif ( preg_match( '/PHP Fatal error:/i', $line ) ) {
+                $line_class = 'sl-debug-line-fatal';
+                $line_type = 'fatal';
+                $line = preg_replace( '/(PHP Fatal error:)/i', '<span style="color: #dc3545; font-weight: bold;">$1</span>', $line );
+            }
+            // PHP Warning
+            elseif ( preg_match( '/PHP Warning:/i', $line ) ) {
+                $line_class = 'sl-debug-line-warning';
+                $line_type = 'fatal'; // Group warnings with fatal for filtering
+                $line = preg_replace( '/(PHP Warning:)/i', '<span style="color: #ff6b6b; font-weight: bold;">$1</span>', $line );
+            }
+            // PHP Parse error
+            elseif ( preg_match( '/PHP Parse error:/i', $line ) ) {
+                $line_class = 'sl-debug-line-parse-error';
+                $line_type = 'fatal';
+                $line = preg_replace( '/(PHP Parse error:)/i', '<span style="color: #dc3545; font-weight: bold;">$1</span>', $line );
+            }
+            // Stack trace
+            elseif ( preg_match( '/Stack trace:/i', $line ) || preg_match( '/^\s*#\d+/', $line ) ) {
+                $line_class = 'sl-debug-line-trace';
+                $line_type = 'normal';
+                $line = '<span style="color: #6c757d;">' . $line . '</span>';
+            }
+            // Normal debug output
+            else {
+                $line_class = 'sl-debug-line-normal';
+                $line_type = 'normal';
+            }
+            
+            if ( ! empty( $line_type ) ) {
+                $formatted_lines[] = '<div class="sl-debug-line ' . $line_class . '" data-debug-type="' . $line_type . '">' . $line . '</div>';
+            } else {
+                $formatted_lines[] = $line;
+            }
+        }
+        
+        return implode( "\n", $formatted_lines );
     }
     
     /**

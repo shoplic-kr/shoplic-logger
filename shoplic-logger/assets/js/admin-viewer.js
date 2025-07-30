@@ -452,8 +452,85 @@ jQuery(document).ready(function($) {
             if (response.success) {
                 card.find('.sl-debug-log-content').html(response.data.content);
                 card.find('.sl-debug-log-size').text(response.data.size);
+                
+                // 원본 컨텐츠 저장
+                card.find('.sl-debug-log-content').data('original-content', response.data.content);
             }
             card.removeClass('sl-loading');
         });
+    });
+    
+    // Debug log 필터 버튼 클릭
+    $(document).on('click', '.sl-debug-filter-btn', function() {
+        var button = $(this);
+        var card = button.closest('.sl-log-card');
+        
+        // 토글 동작
+        button.toggleClass('active');
+        
+        // 필터 적용
+        applyDebugFilters(card);
+    });
+    
+    // Debug log 필터 적용 함수
+    function applyDebugFilters(card) {
+        var logContent = card.find('.sl-debug-log-content');
+        var originalContent = logContent.data('original-content');
+        var activeButtons = card.find('.sl-debug-filter-btn.active');
+        
+        if (!originalContent) {
+            originalContent = logContent.html();
+            logContent.data('original-content', originalContent);
+        }
+        
+        if (activeButtons.length === 0) {
+            // 모든 필터 해제
+            logContent.html(originalContent);
+            return;
+        }
+        
+        // 선택된 타입들 수집
+        var selectedTypes = [];
+        activeButtons.each(function() {
+            selectedTypes.push($(this).data('type'));
+        });
+        
+        // 필터 적용
+        var tempDiv = $('<div>').html(originalContent);
+        var lines = tempDiv.find('.sl-debug-line');
+        var hasMatchingLines = false;
+        
+        lines.each(function() {
+            var line = $(this);
+            var lineType = line.data('debug-type');
+            
+            // 선택된 타입 중 하나라도 일치하면 표시
+            if (selectedTypes.indexOf(lineType) !== -1) {
+                hasMatchingLines = true;
+            } else {
+                line.hide();
+            }
+        });
+        
+        if (hasMatchingLines) {
+            logContent.html(tempDiv.html());
+        } else {
+            logContent.html('<p style="color: #666; padding: 20px; text-align: center;">선택한 필터 조건에 맞는 로그가 없습니다.</p>');
+        }
+    }
+    
+    // Debug log 필터 모두 해제
+    $(document).on('click', '.sl-debug-filter-clear', function() {
+        var card = $(this).closest('.sl-log-card');
+        var logContent = card.find('.sl-debug-log-content');
+        var originalContent = logContent.data('original-content');
+        
+        // 모든 필터 버튼 비활성화
+        card.find('.sl-debug-filter-btn').removeClass('active');
+        
+        // 원본 컨텐츠 복원
+        if (originalContent) {
+            logContent.html(originalContent);
+        }
     });
 });
