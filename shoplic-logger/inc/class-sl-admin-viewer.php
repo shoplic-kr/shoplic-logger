@@ -49,74 +49,20 @@ class SL_Admin_Viewer {
             return;
         }
         
-        // 로컬라이즈된 데이터와 함께 인라인 스크립트 추가
-        wp_add_inline_script( 'jquery', 'var sl_ajax = ' . json_encode( array(
+        // JavaScript 파일 등록 및 로드
+        wp_enqueue_script(
+            'sl-admin-viewer',
+            plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/admin-viewer.js',
+            array( 'jquery' ),
+            '1.0.0',
+            true
+        );
+        
+        // 로컬라이즈 데이터
+        wp_localize_script( 'sl-admin-viewer', 'sl_ajax', array(
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce' => wp_create_nonce( 'sl_ajax_nonce' )
-        ) ) . ';' );
-        
-        // 태그 필터링 스크립트 추가
-        wp_add_inline_script( 'jquery', '
-        jQuery(document).ready(function($) {
-            // 태그 클릭 이벤트
-            $(document).on("click", ".sl-tag", function() {
-                var tag = $(this).data("tag");
-                var card = $(this).closest(".sl-log-card");
-                var isActive = $(this).hasClass("sl-tag-active");
-                
-                if (isActive) {
-                    // 필터 해제
-                    $(this).removeClass("sl-tag-active");
-                    $(this).css("background-color", "#007cba");
-                    card.find(".sl-log-entry").show();
-                    card.find(".sl-filter-info").remove();
-                } else {
-                    // 필터 적용
-                    card.find(".sl-tag").removeClass("sl-tag-active").css("background-color", "#007cba");
-                    $(this).addClass("sl-tag-active");
-                    $(this).css("background-color", "#d63638");
-                    
-                    // 로그 항목 필터링
-                    var logContent = card.find(".sl-log-content");
-                    var lines = logContent.html().split("\\n");
-                    var filteredLines = [];
-                    var inMatchingEntry = false;
-                    
-                    for (var i = 0; i < lines.length; i++) {
-                        var line = lines[i];
-                        
-                        // 새로운 로그 항목의 시작을 확인
-                        if (line.match(/^\[\d{4}-\d{2}-\d{2}/)) {
-                            inMatchingEntry = line.indexOf("[TAGS:") !== -1 && line.indexOf(tag) !== -1;
-                        }
-                        
-                        if (inMatchingEntry) {
-                            filteredLines.push(line);
-                        }
-                    }
-                    
-                    if (filteredLines.length > 0) {
-                        logContent.html(filteredLines.join("\\n"));
-                        
-                        // 필터 정보 추가
-                        if (!card.find(".sl-filter-info").length) {
-                            card.find(".sl-log-actions").after(\'<div class="sl-filter-info" style="background: #f0f0f0; padding: 5px 10px; margin: 10px 0; border-radius: 3px;">필터링됨: <strong>\' + tag + \'</strong> 태그 | <a href="#" class="sl-clear-filter">필터 해제</a></div>\');
-                        }
-                    } else {
-                        logContent.html(\'<p style="color: #666;">"\' + tag + \'" 태그가 있는 로그가 없습니다.</p>\');
-                    }
-                }
-            });
-            
-            // 필터 해제 링크
-            $(document).on("click", ".sl-clear-filter", function(e) {
-                e.preventDefault();
-                var card = $(this).closest(".sl-log-card");
-                card.find(".sl-tag-active").trigger("click");
-            });
-        });
-        ' );
-        
+        ) );
     }
     
     /**
@@ -246,250 +192,36 @@ class SL_Admin_Viewer {
                 opacity: 0.5;
                 pointer-events: none;
             }
+            .sl-tag-filter-selector {
+                margin-bottom: 10px;
+            }
+            .sl-tag-filter-selector select {
+                width: 100%;
+                font-size: 13px;
+                padding: 5px 8px;
+                border: 1px solid #8c8f94;
+                border-radius: 4px;
+                background-color: #fff;
+                cursor: pointer;
+            }
+            .sl-tag-filter-selector select:focus {
+                border-color: #007cba;
+                box-shadow: 0 0 0 1px #007cba;
+                outline: 2px solid transparent;
+            }
+            .sl-filter-info {
+                background: #f0f8ff;
+                border: 1px solid #007cba;
+                color: #0073aa;
+            }
+            .sl-tag {
+                transition: background-color 0.2s ease;
+            }
+            .sl-tag:hover {
+                opacity: 0.8;
+                transform: scale(1.05);
+            }
         </style>
-        
-        <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            // 로그 비우기
-            $(document).on('click', '.sl-clear-log', function() {
-                var button = $(this);
-                var card = button.closest('.sl-log-card');
-                var plugin = button.data('plugin');
-                var date = button.data('date');
-                
-                card.addClass('sl-loading');
-                
-                $.ajax({
-                    url: sl_ajax.ajax_url,
-                    type: 'POST',
-                    data: {
-                        action: 'sl_clear_log',
-                        plugin: plugin,
-                        date: date,
-                        nonce: sl_ajax.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            // 파일 내용이 비워졌으므로 로그를 새로고침
-                            card.find('.sl-log-content').html('<p>로그가 없습니다.</p>');
-                            card.find('.sl-log-size').text('0 B');
-                        }
-                        card.removeClass('sl-loading');
-                    },
-                    error: function(xhr, status, error) {
-                        card.removeClass('sl-loading');
-                        alert('비우기에 실패했습니다.');
-                    }
-                });
-            });
-            
-            // 로그 파일 삭제
-            $(document).on('click', '.sl-delete-file', function() {
-                var button = $(this);
-                var card = button.closest('.sl-log-card');
-                var plugin = button.data('plugin');
-                var date = button.data('date');
-                
-                card.addClass('sl-loading');
-                
-                $.ajax({
-                    url: sl_ajax.ajax_url,
-                    type: 'POST',
-                    data: {
-                        action: 'sl_delete_file',
-                        plugin: plugin,
-                        date: date,
-                        nonce: sl_ajax.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            // 파일이 삭제되었으므로 날짜 선택기에서 해당 날짜 제거
-                            var option = card.find('.sl-log-date-select option[value="' + date + '"]');
-                            option.remove();
-                            
-                            // 다른 날짜가 있으면 첫 번째 날짜로 자동 전환
-                            var newDate = card.find('.sl-log-date-select option:first').val();
-                            if (newDate) {
-                                card.find('.sl-log-date-select').val(newDate).trigger('change');
-                            } else {
-                                // 모든 로그가 삭제되면 카드 제거
-                                card.fadeOut(function() {
-                                    card.remove();
-                                });
-                            }
-                        } else {
-                            card.removeClass('sl-loading');
-                            alert('파일 삭제에 실패했습니다.');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        card.removeClass('sl-loading');
-                        alert('파일 삭제에 실패했습니다.');
-                    }
-                });
-            });
-            
-            // 로그 복사
-            $(document).on('click', '.sl-copy-log', function() {
-                var button = $(this);
-                var content = button.closest('.sl-log-card').find('.sl-log-content').text();
-                
-                if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(content).then(function() {
-                        var originalText = button.text();
-                        button.text('✓ 복사됨');
-                        setTimeout(function() {
-                            button.text(originalText);
-                        }, 2000);
-                    });
-                } else {
-                    // <span title="주 기능이 실패했을 때 사용하는 대체 방법">폴백</span>
-                    var textArea = $('<textarea>').val(content).css({
-                        position: 'fixed',
-                        left: '-999999px'
-                    }).appendTo('body');
-                    textArea[0].select();
-                    document.execCommand('copy');
-                    textArea.remove();
-                    
-                    var originalText = button.text();
-                    button.text('✓ 복사됨');
-                    setTimeout(function() {
-                        button.text(originalText);
-                    }, 2000);
-                }
-            });
-            
-            // 로그 새로고침
-            $(document).on('click', '.sl-refresh-log', function() {
-                var button = $(this);
-                var card = button.closest('.sl-log-card');
-                var plugin = button.data('plugin');
-                var date = card.find('.sl-log-date-select').val();
-                
-                card.addClass('sl-loading');
-                
-                $.post(sl_ajax.ajax_url, {
-                    action: 'sl_refresh_log',
-                    plugin: plugin,
-                    date: date,
-                    nonce: sl_ajax.nonce
-                }, function(response) {
-                    if (response.success) {
-                        card.find('.sl-log-content').html(response.data.content);
-                        card.find('.sl-log-size').text(response.data.size);
-                    }
-                    card.removeClass('sl-loading');
-                });
-            });
-            
-            // 날짜 변경
-            $(document).on('change', '.sl-log-date-select', function() {
-                var select = $(this);
-                var card = select.closest('.sl-log-card');
-                var plugin = card.find('.sl-refresh-log').data('plugin');
-                var date = select.val();
-                
-                card.addClass('sl-loading');
-                
-                $.post(sl_ajax.ajax_url, {
-                    action: 'sl_refresh_log',
-                    plugin: plugin,
-                    date: date,
-                    nonce: sl_ajax.nonce
-                }, function(response) {
-                    if (response.success) {
-                        card.find('.sl-log-content').html(response.data.content);
-                        card.find('.sl-log-size').text(response.data.size);
-                        
-                        // data-date 속성 업데이트
-                        card.find('.sl-clear-log, .sl-copy-log, .sl-refresh-log, .sl-delete-file').attr('data-date', date);
-                    }
-                    card.removeClass('sl-loading');
-                });
-            });
-            
-            // debug.log 비우기
-            $(document).on('click', '.sl-clear-debug-log', function() {
-                var button = $(this);
-                var card = button.closest('.sl-log-card');
-                
-                card.addClass('sl-loading');
-                
-                $.ajax({
-                    url: sl_ajax.ajax_url,
-                    type: 'POST',
-                    data: {
-                        action: 'sl_clear_debug_log',
-                        nonce: sl_ajax.nonce
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            card.find('.sl-debug-log-content').html('<p>debug.log 파일이 없습니다.</p>');
-                            card.find('.sl-debug-log-size').text('0 B');
-                        } else {
-                            alert(response.data || '비우기에 실패했습니다.');
-                        }
-                        card.removeClass('sl-loading');
-                    },
-                    error: function(xhr, status, error) {
-                        card.removeClass('sl-loading');
-                        alert('비우기에 실패했습니다.');
-                    }
-                });
-            });
-            
-            // debug.log 복사
-            $(document).on('click', '.sl-copy-debug-log', function() {
-                var button = $(this);
-                var content = button.closest('.sl-log-card').find('.sl-debug-log-content').text();
-                
-                if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(content).then(function() {
-                        var originalText = button.text();
-                        button.text('✓ 복사됨');
-                        setTimeout(function() {
-                            button.text(originalText);
-                        }, 2000);
-                    });
-                } else {
-                    // 폴백
-                    var textArea = $('<textarea>').val(content).css({
-                        position: 'fixed',
-                        left: '-999999px'
-                    }).appendTo('body');
-                    textArea[0].select();
-                    document.execCommand('copy');
-                    textArea.remove();
-                    
-                    var originalText = button.text();
-                    button.text('✓ 복사됨');
-                    setTimeout(function() {
-                        button.text(originalText);
-                    }, 2000);
-                }
-            });
-            
-            // debug.log 새로고침
-            $(document).on('click', '.sl-refresh-debug-log', function() {
-                var button = $(this);
-                var card = button.closest('.sl-log-card');
-                
-                card.addClass('sl-loading');
-                
-                $.post(sl_ajax.ajax_url, {
-                    action: 'sl_refresh_debug_log',
-                    nonce: sl_ajax.nonce
-                }, function(response) {
-                    if (response.success) {
-                        card.find('.sl-debug-log-content').html(response.data.content);
-                        card.find('.sl-debug-log-size').text(response.data.size);
-                    }
-                    card.removeClass('sl-loading');
-                });
-            });
-        });
-        </script>
         <?php
     }
     
@@ -501,8 +233,28 @@ class SL_Admin_Viewer {
         $current_date = ! empty( $log_files ) ? $log_files[0]['date'] : date( 'Y-m-d' );
         $log_file = SL_LOG_DIR . '/' . $plugin . '/log-' . $current_date . '.log';
         
+        // 현재 로그 파일에서 태그 추출
+        $available_tags = array();
+        if ( file_exists( $log_file ) ) {
+            $content = file_get_contents( $log_file );
+            preg_match_all( '/\[TAGS: ([^\]]+)\]/', $content, $matches );
+            if ( ! empty( $matches[1] ) ) {
+                foreach ( $matches[1] as $tag_string ) {
+                    $tags = explode( ', ', $tag_string );
+                    foreach ( $tags as $tag ) {
+                        $tag = trim( $tag );
+                        if ( ! empty( $tag ) ) {
+                            $available_tags[ $tag ] = true;
+                        }
+                    }
+                }
+            }
+        }
+        $available_tags = array_keys( $available_tags );
+        sort( $available_tags );
+        
         ?>
-        <div class="sl-log-card">
+        <div class="sl-log-card" data-plugin="<?php echo esc_attr( $plugin ); ?>">
             <h3><?php echo esc_html( $plugin ); ?></h3>
             
             <div class="sl-log-date-selector">
@@ -515,6 +267,17 @@ class SL_Admin_Viewer {
                 </select>
             </div>
             
+            <?php if ( ! empty( $available_tags ) ) : ?>
+            <div class="sl-tag-filter-selector">
+                <select class="sl-tag-filter-select">
+                    <option value="">모든 태그 보기</option>
+                    <?php foreach ( $available_tags as $tag ) : ?>
+                        <option value="<?php echo esc_attr( $tag ); ?>"><?php echo esc_html( $tag ); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
+            
             <div class="sl-log-actions">
                 <button type="button" class="button sl-clear-log" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">비우기</button>
                 <button type="button" class="button sl-copy-log" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">복사</button>
@@ -522,7 +285,7 @@ class SL_Admin_Viewer {
                 <button type="button" class="button sl-delete-file" data-plugin="<?php echo esc_attr( $plugin ); ?>" data-date="<?php echo esc_attr( $current_date ); ?>">파일삭제</button>
             </div>
             
-            <div class="sl-log-content">
+            <div class="sl-log-content" data-original-content="">
                 <?php
                 if ( file_exists( $log_file ) ) {
                     $content = file_get_contents( $log_file );
